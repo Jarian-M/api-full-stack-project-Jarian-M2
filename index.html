@@ -1,11 +1,245 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>API Full Stack Project</title>
-  </head>
-  <body>
-    <!-- You code goes here-->
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RoastMyTaste — We'll Judge Your Music</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside id="sidebar">
+    <div class="logo">
+      <span>🔥</span>
+      <span><span class="logo-accent">Roast</span>MyTaste</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-view="home">
+        <span>🏠</span><span>Home</span>
+      </a>
+      <a href="#" class="nav-item" data-view="saved">
+        <span>💾</span><span>Saved Roasts</span>
+      </a>
+    </nav>
+
+    <div class="history-section">
+      <div class="history-header">
+        <span>YOUR ROAST HISTORY</span>
+        <button id="clear-history-btn" class="icon-btn" title="Clear history">×</button>
+      </div>
+      <div id="history-list">
+        <div class="history-item" data-placeholder="true">
+          <div class="history-thumb">🔥</div>
+          <div class="history-info">
+            <div class="history-title">Drake + SZA Mix</div>
+            <div class="history-sub">Roast · Apr 14</div>
+          </div>
+        </div>
+        <div class="history-item" data-placeholder="true">
+          <div class="history-thumb">🎵</div>
+          <div class="history-info">
+            <div class="history-title">Taylor Era Roast</div>
+            <div class="history-sub">Roast · Apr 12</div>
+          </div>
+        </div>
+        <div class="history-item" data-placeholder="true">
+          <div class="history-thumb">💀</div>
+          <div class="history-info">
+            <div class="history-title">My Emo Phase</div>
+            <div class="history-sub">Roast · Apr 9</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button id="settings-btn" class="settings-link">⚙️ Settings</button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main id="main">
+
+    <!-- API key notice -->
+    <div id="api-banner" class="api-banner hidden">
+      <span>⚙️ Add your free Groq API key to generate real roasts</span>
+      <button id="banner-key-btn" class="btn-sm btn-ghost">Set Key</button>
+    </div>
+
+    <!-- HOME VIEW -->
+    <section id="view-home" class="view active">
+
+      <div class="hero-card">
+        <div class="hero-thumb">🔥</div>
+        <div class="hero-body">
+          <div class="hero-eyebrow">AI MUSIC ROAST</div>
+          <h1 class="hero-title">We'll judge<br>your taste.</h1>
+          <p class="hero-desc">Enter your favorite artists and get absolutely roasted by AI.</p>
+        </div>
+      </div>
+
+      <div class="intensity-row">
+        <button class="intensity-btn active" data-level="mild">🎵 Mild</button>
+        <button class="intensity-btn" data-level="medium">🔥 Medium</button>
+        <button class="intensity-btn" data-level="nuclear">💀 Nuclear</button>
+      </div>
+
+      <div class="field-group">
+        <h2 class="field-label">Who do you listen to?</h2>
+        <p class="field-hint">Search for artists — we'll use it to roast you.</p>
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input id="artist-input" type="text" class="search-input"
+            placeholder="Search artists, songs, albums..." autocomplete="off" />
+        </div>
+        <div id="search-suggestions" class="suggestions hidden"></div>
+        <div id="artist-chips" class="chips-row"></div>
+      </div>
+
+      <div class="field-group">
+        <h2 class="field-label">Pick your vibe</h2>
+        <div class="pills-row" id="vibe-pills">
+          <button class="vibe-pill" data-genre="Hip-Hop">🎤 Hip-Hop</button>
+          <button class="vibe-pill" data-genre="R&B">🌊 R&amp;B</button>
+          <button class="vibe-pill" data-genre="Country">🤠 Country</button>
+          <button class="vibe-pill" data-genre="Pop">💃 Pop</button>
+          <button class="vibe-pill" data-genre="Rock">🎸 Rock</button>
+          <button class="vibe-pill" data-genre="Indie">🎹 Indie</button>
+          <button class="vibe-pill" data-genre="EDM">⚡ EDM</button>
+          <button class="vibe-pill" data-genre="Jazz">🎷 Jazz</button>
+          <button class="vibe-pill" data-genre="Sad Girl Hours">😢 Sad Girl Hours</button>
+          <button class="vibe-pill" data-genre="Late Night">🌙 Late Night</button>
+          <button class="vibe-pill" data-genre="Gym Bro">🏋 Gym Bro</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <h2 class="field-label">Trending artists to roast</h2>
+        <div class="pills-row">
+          <button class="trend-chip" data-artist="Taylor Swift">🌟 Taylor Swift</button>
+          <button class="trend-chip" data-artist="Drake">🎤 Drake</button>
+          <button class="trend-chip" data-artist="Sabrina Carpenter">💅 Sabrina Carpenter</button>
+          <button class="trend-chip" data-artist="Morgan Wallen">🤠 Morgan Wallen</button>
+          <button class="trend-chip" data-artist="Billie Eilish">🖤 Billie Eilish</button>
+          <button class="trend-chip" data-artist="Bad Bunny">🐰 Bad Bunny</button>
+          <button class="trend-chip" data-artist="SZA">🌊 SZA</button>
+        </div>
+      </div>
+
+      <div class="cta-row">
+        <button id="roast-btn" class="roast-btn">🔥 Get Roasted</button>
+      </div>
+
+    </section>
+
+    <!-- RESULTS VIEW -->
+    <section id="view-results" class="view hidden">
+
+      <div class="result-header">
+        <div id="result-thumb" class="result-thumb">💀</div>
+        <div class="result-meta">
+          <div class="result-eyebrow">YOUR ROAST · <span id="result-date">APR 16, 2026</span></div>
+          <h2 id="result-title" class="result-title">The Identity Crisis Playlist</h2>
+          <p id="result-artists" class="result-artists">Drake · SZA · Morgan Wallen · 3 artists analyzed</p>
+          <p class="result-model">Generated by Groq · Llama 3.3 70B</p>
+        </div>
+      </div>
+
+      <div class="result-actions">
+        <button id="save-btn" class="circle-btn" title="Save roast">💾</button>
+        <button id="share-btn" class="btn-ghost">📤 Share</button>
+        <button id="copy-btn" class="btn-ghost">🔗 Copy</button>
+        <button id="roast-again-btn" class="btn-orange">🔄 Roast Again</button>
+      </div>
+
+      <div class="card-section">
+        <h3 class="section-label">🔥 Your Roast</h3>
+        <div class="roast-card">
+          <p id="result-roast" class="roast-text">
+            Bro listens to Drake when he's sad, Morgan Wallen when he's pretending to be from somewhere
+            with a porch, and SZA when he wants people to think he's emotionally complex. You are a walking
+            identity crisis wrapped in a Spotify Wrapped nobody asked for.
+          </p>
+        </div>
+      </div>
+
+      <div class="card-section">
+        <h3 class="section-label">Your Taste Profile</h3>
+        <div class="stats-grid">
+          <div class="stat-tile">
+            <div class="stat-name">MAINSTREAM SCORE</div>
+            <div class="stat-val orange" id="stat-score">82%</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-name">ARCHETYPE</div>
+            <div class="stat-val" id="stat-archetype">Identity Crisis</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-name">ARTISTS ANALYZED</div>
+            <div class="stat-val orange" id="stat-count">3</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-name">ROAST INTENSITY</div>
+            <div class="stat-val" id="stat-intensity">🔥 Medium</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SAVED VIEW -->
+    <section id="view-saved" class="view hidden">
+      <div class="page-head">
+        <h2>💾 Saved Roasts</h2>
+        <p>Your collection of devastation</p>
+      </div>
+      <div id="saved-list">
+        <div class="empty-state">
+          <div class="empty-icon">💀</div>
+          <p>No saved roasts yet. Go get roasted!</p>
+          <button class="btn-orange" id="go-home-btn">🔥 Get Roasted</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Settings modal -->
+<div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-bg" id="modal-bg"></div>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>⚙️ Settings</h3>
+      <button class="icon-btn" id="modal-close">×</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-label" for="api-key-input">Groq API Key</label>
+      <p class="form-hint">Get a free key at <strong>console.groq.com</strong></p>
+      <input id="api-key-input" type="password" class="form-input" placeholder="gsk_..." />
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" id="cancel-btn">Cancel</button>
+      <button class="btn-orange" id="save-key-btn">Save Key</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loading-overlay" class="loading-overlay hidden">
+  <div class="loading-box">
+    <span class="loading-flame">🔥</span>
+    <p class="loading-title">Roasting in progress...</p>
+    <p class="loading-sub">AI · Llama 3.3 70B</p>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+<script src="index.js"></script>
+</body>
 </html>
