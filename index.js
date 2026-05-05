@@ -486,6 +486,129 @@ function renderSavedView() {
   });
 }
 
+// ═════════════════════════════════════════════════════
+//  FINAL POLISH — animations & extra features
+// ═════════════════════════════════════════════════════
+
+// ── Typewriter animation for roast text ──────────────
+function typewriterEffect(el, text, msPerChar = 22) {
+  el.textContent = '';
+  el.classList.add('typing');
+  let i = 0;
+  const tick = () => {
+    if (i < text.length) {
+      el.textContent += text[i++];
+      setTimeout(tick, msPerChar);
+    } else {
+      el.classList.remove('typing');
+    }
+  };
+  tick();
+}
+
+// ── Animated score bar ────────────────────────────────
+function animateScoreBar(score) {
+  const bar = $('score-bar');
+  if (!bar) return;
+  bar.style.width = '0';
+  setTimeout(() => { bar.style.width = `${score}%`; }, 80);
+}
+
+// ── Roast count badge in sidebar logo ────────────────
+function updateCountBadge() {
+  const total  = loadDB().length;
+  let badge    = document.querySelector('.roast-count');
+  const logo   = document.querySelector('.logo');
+  if (!logo) return;
+
+  if (total > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'roast-count';
+      logo.appendChild(badge);
+    }
+    badge.textContent = total;
+  } else if (badge) {
+    badge.remove();
+  }
+}
+
+// ── Pulse button when artists are queued ─────────────
+function updateRoastBtnPulse() {
+  $('roast-btn').classList.toggle('ready', state.artists.length > 0);
+}
+
+// ── Override addArtist to also update pulse ───────────
+const _origAdd = addArtist;
+function addArtistPolished(name) {
+  _origAdd(name);
+  updateRoastBtnPulse();
+}
+
+// ── Override removeArtist to update pulse ─────────────
+const _origRemove = removeArtist;
+function removeArtistPolished(name) {
+  _origRemove(name);
+  updateRoastBtnPulse();
+}
+
+// Patch chip renderer to use polished remove
+const _origRenderChips = renderChips;
+function renderChips() {
+  const row = $('artist-chips');
+  row.innerHTML = '';
+  state.artists.forEach(name => {
+    const chip = document.createElement('span');
+    chip.className = 'artist-chip';
+    chip.innerHTML = `🎤 ${escHtml(name)} <button class="chip-remove" aria-label="Remove ${escHtml(name)}">×</button>`;
+    chip.querySelector('.chip-remove').addEventListener('click', () => { removeArtistPolished(name); });
+    row.appendChild(chip);
+  });
+}
+
+// Patch trending and suggestions to use polished add
+document.querySelectorAll('.trend-chip').forEach(chip => {
+  chip.replaceWith(chip.cloneNode(true));
+});
+document.querySelectorAll('.trend-chip').forEach(chip => {
+  chip.addEventListener('click', () => addArtistPolished(chip.dataset.artist));
+});
+
+// Patch artist input Enter handler
+artistInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const val = artistInput.value.trim();
+    if (val) { addArtistPolished(val); artistInput.value = ''; }
+  }
+});
+
+// ── Override displayResults to add animations ─────────
+const _origDisplay = displayResults;
+function displayResults(roast) {
+  _origDisplay(roast);
+  const roastEl = $('result-roast');
+  typewriterEffect(roastEl, roast.roast, 20);
+  animateScoreBar(roast.mainstream_score);
+  updateCountBadge();
+}
+
+// ── Override addToHistory to update badge ─────────────
+const _origHistory = addToHistory;
+function addToHistory(roast) {
+  _origHistory(roast);
+  updateCountBadge();
+}
+
+// ── Global Enter shortcut: submit roast from anywhere ─
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) {
+    if ($('view-home').classList.contains('active')) {
+      generateRoast();
+    }
+  }
+});
+
 // ── Init ─────────────────────────────────────────────
 checkBanner();
 renderHistorySidebar();
+updateCountBadge();

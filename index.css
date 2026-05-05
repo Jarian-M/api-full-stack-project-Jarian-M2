@@ -697,6 +697,76 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--txt3); }
 
+/* =================== FINAL POLISH ================ */
+
+/* Typewriter cursor on roast text */
+.roast-text.typing::after {
+  content: '|';
+  animation: blink 0.7s step-end infinite;
+  color: var(--accent);
+  font-style: normal;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Pulse ring on roast button when artists are added */
+.roast-btn.ready {
+  animation: pulse-ring 2.4s ease-in-out infinite;
+}
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 4px 20px rgba(255,69,0,0.38); }
+  50%  { box-shadow: 0 0 0 10px rgba(255,69,0,0), 0 4px 20px rgba(255,69,0,0.38); }
+  100% { box-shadow: 0 4px 20px rgba(255,69,0,0.38); }
+}
+
+/* Roast count badge in sidebar logo */
+.roast-count {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 1.6;
+}
+
+/* Score bar in stat tile */
+.score-bar-wrap {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-lt));
+  border-radius: 2px;
+  width: 0;
+  transition: width 0.9s ease;
+}
+
+/* Keyboard shortcut hint */
+.shortcut-hint {
+  font-size: 0.74rem;
+  color: var(--txt3);
+  text-align: center;
+  margin-top: -16px;
+}
+kbd {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: monospace;
+  font-size: 0.72rem;
+}
+
 /* =================== RESPONSIVE =================== */
 
 @media (max-width: 720px) {
