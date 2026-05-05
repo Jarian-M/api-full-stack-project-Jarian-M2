@@ -6,6 +6,7 @@
 
 const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
+// GROQ_KEY is loaded from config.js (gitignored)
 const MB_URL     = 'https://musicbrainz.org/ws/2/artist/';
 const DB_KEY     = 'roastmytaste_roasts';
 
@@ -85,7 +86,6 @@ function renderChips() {
     chip.querySelector('.chip-remove').addEventListener('click', () => removeArtist(name));
     row.appendChild(chip);
   });
-  // pulse button when artists are ready
   $('roast-btn').classList.toggle('ready', state.artists.length > 0);
 }
 
@@ -193,40 +193,6 @@ document.querySelectorAll('.vibe-pill').forEach(pill => {
 });
 
 // ═══════════════════════════════════════
-//  SETTINGS / API KEY
-// ═══════════════════════════════════════
-
-function getKey() { return localStorage.getItem('groq_key') || ''; }
-function hasKey() { return !!getKey(); }
-
-function checkBanner() {
-  $('api-banner').classList.toggle('hidden', hasKey());
-}
-
-function openSettings() {
-  $('api-key-input').value = getKey();
-  $('settings-modal').classList.remove('hidden');
-}
-
-function closeSettings() {
-  $('settings-modal').classList.add('hidden');
-}
-
-$('settings-btn').addEventListener('click', openSettings);
-$('banner-key-btn').addEventListener('click', openSettings);
-$('modal-bg').addEventListener('click', closeSettings);
-$('modal-close').addEventListener('click', closeSettings);
-$('cancel-btn').addEventListener('click', closeSettings);
-
-$('save-key-btn').addEventListener('click', () => {
-  const key = $('api-key-input').value.trim();
-  localStorage.setItem('groq_key', key);
-  closeSettings();
-  checkBanner();
-  showToast(key ? '✅ API key saved!' : '⚠️ API key cleared');
-});
-
-// ═══════════════════════════════════════
 //  TOAST
 // ═══════════════════════════════════════
 
@@ -243,29 +209,40 @@ function showToast(msg, ms = 2800) {
 //  GROQ API — GENERATE ROAST
 // ═══════════════════════════════════════
 
+const SYSTEM_PROMPT =
+  `You are a sharp, dry, genuinely funny music snob who roasts people's taste. ` +
+  `Your humor is specific and observational — you make fun of what each artist ACTUALLY represents and what it says about the listener. ` +
+  `You sound like a real person with opinions, not an AI performing meanness. ` +
+  `RULES: ` +
+  `(1) Never use lazy clichés — do NOT say "identity crisis", "Spotify Wrapped", "walking contradiction", or "eclectic mix". Those are cringy filler. ` +
+  `(2) Be specific. Bad: "you have terrible taste." Good: "You listen to Morgan Wallen but you have never touched grass in a non-ironic way." ` +
+  `(3) Reference the actual stereotype of each artist's fanbase and drag the person for fitting it. ` +
+  `(4) Casual and cutting beats dramatic and try-hard every time. Don't announce the roast, just roast. ` +
+  `(5) No profanity, no slurs — but everything else is fair game.`;
+
+const INTENSITY_STYLE = {
+  mild:    `Tone: lightly condescending, like a friend who can't help themselves. Still lands real hits.`,
+  medium:  `Tone: genuinely mean. Zero filter. Drag specific artists and what listening to them says about this person. Make it sting.`,
+  nuclear: `Tone: complete destruction. Go artist by artist if needed. Make specific, cutting observations about each one and what the combination reveals about this person's life choices. This should make them laugh and feel slightly personally attacked at the same time.`,
+};
+
 async function generateRoast() {
-  if (!hasKey()) { openSettings(); return; }
   if (state.artists.length === 0) { showToast('Add at least one artist first!'); return; }
 
-  const intensityDesc = {
-    mild:    'gentle, playful, and light-hearted',
-    medium:  'moderately savage and witty',
-    nuclear: 'absolutely devastating — go all out (keep it PG-13)',
-  };
-  const vibeText = state.vibes.length ? state.vibes.join(', ') : 'a mix of genres';
+  const vibeText = state.vibes.length ? state.vibes.join(', ') : 'unspecified';
 
-  const prompt =
-    `You are a hilarious music roast comedian. Your roasts are clever, observational, and school-appropriate (PG-13 max).\n\n` +
-    `Artists the user listens to: ${state.artists.join(', ')}\n` +
-    `Preferred genres/vibes: ${vibeText}\n` +
-    `Roast intensity: ${intensityDesc[state.intensity]}\n\n` +
-    `Reply ONLY with valid JSON — no extra text, no markdown fences:\n` +
+  const userPrompt =
+    `Artists: ${state.artists.join(', ')}\n` +
+    `Vibes they selected: ${vibeText}\n` +
+    `Intensity: ${state.intensity}\n` +
+    `${INTENSITY_STYLE[state.intensity]}\n\n` +
+    `Reply ONLY with valid JSON, no markdown fences:\n` +
     `{\n` +
-    `  "title": "a creative 3-5 word name for their music taste",\n` +
-    `  "roast": "a 2-3 sentence roast referencing these specific artists",\n` +
-    `  "archetype": "listener archetype in 2-4 words",\n` +
+    `  "title": "a short, specific, mean nickname for their taste (3-5 words, no generic phrases)",\n` +
+    `  "roast": "3-4 sentences. Specific, observational, funny. Reference actual artists by name. Make it genuinely hurt.",\n` +
+    `  "archetype": "a specific cutting label for this listener type (2-4 words, be creative)",\n` +
     `  "mainstream_score": <integer 0-100>,\n` +
-    `  "icon": "<single emoji>"\n` +
+    `  "icon": "<one emoji that nails their vibe>"\n` +
     `}`;
 
   $('loading-overlay').classList.remove('hidden');
@@ -276,13 +253,16 @@ async function generateRoast() {
       method: 'POST',
       headers: {
         'Content-Type':  'application/json',
-        'Authorization': `Bearer ${getKey()}`,
+        'Authorization': `Bearer ${GROQ_KEY}`,
       },
       body: JSON.stringify({
-        model:       GROQ_MODEL,
-        messages:    [{ role: 'user', content: prompt }],
-        temperature: 0.92,
-        max_tokens:  400,
+        model:    GROQ_MODEL,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user',   content: userPrompt },
+        ],
+        temperature: 1.1,
+        max_tokens:  500,
       }),
     });
 
@@ -303,9 +283,9 @@ async function generateRoast() {
       id:               Date.now().toString(),
       title:            parsed.title            || 'Untitled Roast',
       roast:            parsed.roast            || raw,
-      archetype:        parsed.archetype        || 'Unique Listener',
+      archetype:        parsed.archetype        || 'Hopeless Case',
       mainstream_score: Math.min(100, Math.max(0, parsed.mainstream_score ?? 50)),
-      icon:             parsed.icon             || '🔥',
+      icon:             parsed.icon             || '💀',
       artists:          [...state.artists],
       vibes:            [...state.vibes],
       intensity:        state.intensity,
@@ -337,10 +317,8 @@ function displayResults(roast) {
   $('stat-intensity').textContent =
     { mild: '🎵 Mild', medium: '🔥 Medium', nuclear: '💀 Nuclear' }[roast.intensity];
 
-  // typewriter animation on roast text
   typewriter($('result-roast'), roast.roast);
 
-  // animated score bar
   const bar = $('score-bar');
   if (bar) { bar.style.width = '0'; setTimeout(() => { bar.style.width = `${roast.mainstream_score}%`; }, 80); }
 
@@ -354,7 +332,7 @@ function displayResults(roast) {
 
 $('roast-btn').addEventListener('click', generateRoast);
 
-// Ctrl+Enter shortcut to roast from anywhere on home view
+// Ctrl+Enter shortcut on home view
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.ctrlKey && $('view-home').classList.contains('active')) {
     generateRoast();
@@ -394,7 +372,6 @@ function saveDB(roasts) {
   localStorage.setItem(DB_KEY, JSON.stringify(roasts));
 }
 
-// ── History ───────────────────────────────────────────
 function addToHistory(roast) {
   const roasts = loadDB();
   if (!roasts.find(r => r.id === roast.id)) {
@@ -441,7 +418,6 @@ $('clear-history-btn').addEventListener('click', () => {
   showToast('History cleared');
 });
 
-// ── Save / unsave ─────────────────────────────────────
 function isRoastSaved(id) {
   return loadDB().some(r => r.id === id && r.saved);
 }
@@ -471,7 +447,6 @@ $('save-btn').addEventListener('click', () => {
   renderHistorySidebar();
 });
 
-// ── Saved roasts view ─────────────────────────────────
 function renderSavedView() {
   const container = $('saved-list');
   const saved     = loadDB().filter(r => r.saved);
@@ -519,7 +494,7 @@ function renderSavedView() {
 }
 
 // ═══════════════════════════════════════
-//  POLISH — animations & extras
+//  ANIMATIONS
 // ═══════════════════════════════════════
 
 function typewriter(el, text, msPerChar = 20) {
@@ -558,6 +533,6 @@ function updateCountBadge() {
 //  INIT
 // ═══════════════════════════════════════
 
-checkBanner();
 renderHistorySidebar();
 updateCountBadge();
+artistInput.focus();

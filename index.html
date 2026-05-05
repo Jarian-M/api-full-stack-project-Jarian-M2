@@ -9,7 +9,6 @@
 <body>
 <div id="app">
 
-  <!-- ===== SIDEBAR ===== -->
   <aside id="sidebar">
     <div class="logo">
       <span>🔥</span>
@@ -55,21 +54,9 @@
       </div>
     </div>
 
-    <div class="sidebar-footer">
-      <button id="settings-btn" class="settings-link">⚙️ Settings</button>
-    </div>
   </aside>
 
-  <!-- ===== MAIN CONTENT ===== -->
   <main id="main">
-
-    <!-- API key notice -->
-    <div id="api-banner" class="api-banner hidden">
-      <span>⚙️ Add your free Groq API key to generate real roasts</span>
-      <button id="banner-key-btn" class="btn-sm btn-ghost">Set Key</button>
-    </div>
-
-    <!-- HOME VIEW -->
     <section id="view-home" class="view active">
 
       <div class="hero-card">
@@ -136,7 +123,6 @@
 
     </section>
 
-    <!-- RESULTS VIEW -->
     <section id="view-results" class="view hidden">
 
       <div class="result-header">
@@ -192,7 +178,6 @@
 
     </section>
 
-    <!-- SAVED VIEW -->
     <section id="view-saved" class="view hidden">
       <div class="page-head">
         <h2>💾 Saved Roasts</h2>
@@ -210,27 +195,6 @@
   </main>
 </div>
 
-<!-- Settings modal -->
-<div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="modal-bg" id="modal-bg"></div>
-  <div class="modal-box">
-    <div class="modal-head">
-      <h3>⚙️ Settings</h3>
-      <button class="icon-btn" id="modal-close">×</button>
-    </div>
-    <div class="modal-body">
-      <label class="form-label" for="api-key-input">Groq API Key</label>
-      <p class="form-hint">Get a free key at <strong>console.groq.com</strong></p>
-      <input id="api-key-input" type="password" class="form-input" placeholder="gsk_..." />
-    </div>
-    <div class="modal-foot">
-      <button class="btn-ghost" id="cancel-btn">Cancel</button>
-      <button class="btn-orange" id="save-key-btn">Save Key</button>
-    </div>
-  </div>
-</div>
-
-<!-- Loading overlay -->
 <div id="loading-overlay" class="loading-overlay hidden">
   <div class="loading-box">
     <span class="loading-flame">🔥</span>
@@ -239,9 +203,9 @@
   </div>
 </div>
 
-<!-- Toast notification -->
 <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
+<script src="config.js"></script>
 <script src="index.js"></script>
 </body>
 </html>
