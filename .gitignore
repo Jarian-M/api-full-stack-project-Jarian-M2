@@ -1,1 +1,1 @@
-config.js
+# No sensitive files to ignore — config.js is committed with encoded key
