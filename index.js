@@ -1,2 +1,355 @@
-// RoastMyTaste — JavaScript coming in next commit
-console.log('RoastMyTaste loaded');
+/* =====================================================
+   RoastMyTaste — Async JS & API Calls
+   APIs used:
+     - MusicBrainz  (artist search, free/no key)
+     - Groq         (AI roast generation, free key required)
+   ===================================================== */
+
+const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const MB_URL     = 'https://musicbrainz.org/ws/2/artist/';
+
+// ── App state ────────────────────────────────────────
+const state = {
+  artists:  [],
+  vibes:    [],
+  intensity: 'mild',
+  current:  null,
+};
+
+// ── DOM helpers ──────────────────────────────────────
+const $ = id => document.getElementById(id);
+let suggestTimer = null;
+
+// ── View switching ───────────────────────────────────
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => {
+    v.classList.toggle('active', false);
+    v.classList.toggle('hidden', true);
+  });
+  const target = $(`view-${name}`);
+  if (target) { target.classList.remove('hidden'); target.classList.add('active'); }
+
+  document.querySelectorAll('.nav-item[data-view]').forEach(link => {
+    link.classList.toggle('active', link.dataset.view === name);
+  });
+
+  if (name === 'saved') renderSavedView();
+}
+
+// ── Nav links ────────────────────────────────────────
+document.querySelectorAll('.nav-item[data-view]').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    showView(link.dataset.view);
+  });
+});
+
+$('go-home-btn').addEventListener('click', () => showView('home'));
+$('roast-again-btn').addEventListener('click', () => showView('home'));
+
+// ── Artist management ────────────────────────────────
+function addArtist(name) {
+  const n = name.trim();
+  if (!n) return;
+  if (state.artists.some(a => a.toLowerCase() === n.toLowerCase())) {
+    showToast('Artist already added');
+    return;
+  }
+  if (state.artists.length >= 10) { showToast('Max 10 artists'); return; }
+  state.artists.push(n);
+  renderChips();
+  hideSuggestions();
+}
+
+function removeArtist(name) {
+  state.artists = state.artists.filter(a => a !== name);
+  renderChips();
+}
+
+function renderChips() {
+  const row = $('artist-chips');
+  row.innerHTML = '';
+  state.artists.forEach(name => {
+    const chip = document.createElement('span');
+    chip.className = 'artist-chip';
+    chip.innerHTML = `🎤 ${escHtml(name)} <button class="chip-remove" aria-label="Remove ${escHtml(name)}">×</button>`;
+    chip.querySelector('.chip-remove').addEventListener('click', () => removeArtist(name));
+    row.appendChild(chip);
+  });
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Artist search with MusicBrainz API ───────────────
+const artistInput = $('artist-input');
+const suggestBox  = $('search-suggestions');
+
+artistInput.addEventListener('input', () => {
+  clearTimeout(suggestTimer);
+  const q = artistInput.value.trim();
+  if (q.length < 2) { hideSuggestions(); return; }
+  suggestTimer = setTimeout(() => fetchSuggestions(q), 320);
+});
+
+artistInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const val = artistInput.value.trim();
+    if (val) { addArtist(val); artistInput.value = ''; }
+  }
+  if (e.key === 'Escape') hideSuggestions();
+});
+
+async function fetchSuggestions(query) {
+  try {
+    const url = `${MB_URL}?query=artist:${encodeURIComponent(query)}&limit=5&fmt=json`;
+    const res  = await fetch(url, { headers: { 'User-Agent': 'RoastMyTaste/1.0 (school project)' } });
+    if (!res.ok) return;
+    const data = await res.json();
+    showSuggestions(data.artists || []);
+  } catch {
+    hideSuggestions();
+  }
+}
+
+function showSuggestions(artists) {
+  if (!artists.length) { hideSuggestions(); return; }
+  suggestBox.innerHTML = '';
+  artists.slice(0, 5).forEach(a => {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    const type = a.disambiguation ? `<span class="suggestion-type">${escHtml(a.disambiguation)}</span>` : '';
+    item.innerHTML = `<span class="suggestion-name">🎤 ${escHtml(a.name)}</span>${type}`;
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();
+      addArtist(a.name);
+      artistInput.value = '';
+    });
+    suggestBox.appendChild(item);
+  });
+  suggestBox.classList.remove('hidden');
+}
+
+function hideSuggestions() {
+  suggestBox.classList.add('hidden');
+  suggestBox.innerHTML = '';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search-suggestions') && !e.target.closest('#artist-input')) {
+    hideSuggestions();
+  }
+});
+
+// ── Trending chips ────────────────────────────────────
+document.querySelectorAll('.trend-chip').forEach(chip => {
+  chip.addEventListener('click', () => addArtist(chip.dataset.artist));
+});
+
+// ── Intensity selector ───────────────────────────────
+document.querySelectorAll('.intensity-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.intensity-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.intensity = btn.dataset.level;
+  });
+});
+
+// ── Vibe pills ───────────────────────────────────────
+document.querySelectorAll('.vibe-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    pill.classList.toggle('active');
+    const genre = pill.dataset.genre;
+    const idx   = state.vibes.indexOf(genre);
+    if (idx > -1) state.vibes.splice(idx, 1);
+    else state.vibes.push(genre);
+  });
+});
+
+// ── Settings / API key ────────────────────────────────
+function getKey()  { return localStorage.getItem('groq_key') || ''; }
+function hasKey()  { return !!getKey(); }
+
+function checkBanner() {
+  $('api-banner').classList.toggle('hidden', hasKey());
+}
+
+function openSettings() {
+  $('api-key-input').value = getKey();
+  $('settings-modal').classList.remove('hidden');
+}
+
+function closeSettings() {
+  $('settings-modal').classList.add('hidden');
+}
+
+$('settings-btn').addEventListener('click', openSettings);
+$('banner-key-btn').addEventListener('click', openSettings);
+$('modal-bg').addEventListener('click', closeSettings);
+$('modal-close').addEventListener('click', closeSettings);
+$('cancel-btn').addEventListener('click', closeSettings);
+
+$('save-key-btn').addEventListener('click', () => {
+  const key = $('api-key-input').value.trim();
+  localStorage.setItem('groq_key', key);
+  closeSettings();
+  checkBanner();
+  showToast(key ? '✅ API key saved!' : '⚠️ API key cleared');
+});
+
+// ── Toast ─────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, ms = 2800) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
+}
+
+// ── Generate roast via Groq API ──────────────────────
+async function generateRoast() {
+  if (!hasKey()) { openSettings(); return; }
+  if (state.artists.length === 0) { showToast('Add at least one artist first!'); return; }
+
+  const intensityDesc = {
+    mild:    'gentle, playful, and light-hearted',
+    medium:  'moderately savage and witty',
+    nuclear: 'absolutely devastating — go all out (keep it PG-13)',
+  };
+
+  const vibeText  = state.vibes.length ? state.vibes.join(', ') : 'a mix of genres';
+  const prompt    = `You are a hilarious music roast comedian. Your roasts are clever, observational, and school-appropriate (PG-13 max).
+
+Artists the user listens to: ${state.artists.join(', ')}
+Preferred genres/vibes: ${vibeText}
+Roast intensity requested: ${intensityDesc[state.intensity]}
+
+Reply ONLY with valid JSON — no extra text, no markdown fences:
+{
+  "title": "a creative 3-5 word name for their music taste",
+  "roast": "a 2-3 sentence roast that references specific artists and why their combo is funny",
+  "archetype": "listener archetype in 2-4 words (e.g. Identity Crisis, Late Night Sad Boy)",
+  "mainstream_score": <integer 0-100>,
+  "icon": "<single emoji that represents their taste>"
+}`;
+
+  $('loading-overlay').classList.remove('hidden');
+  $('roast-btn').disabled = true;
+
+  try {
+    const res = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${getKey()}`,
+      },
+      body: JSON.stringify({
+        model:       GROQ_MODEL,
+        messages:    [{ role: 'user', content: prompt }],
+        temperature: 0.92,
+        max_tokens:  400,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${res.status}`);
+    }
+
+    const data  = await res.json();
+    const raw   = data.choices[0].message.content;
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Unexpected response format from AI');
+
+    const parsed = JSON.parse(match[0]);
+    const now    = new Date();
+
+    state.current = {
+      id:               Date.now().toString(),
+      title:            parsed.title            || 'Untitled Roast',
+      roast:            parsed.roast            || raw,
+      archetype:        parsed.archetype        || 'Unique Listener',
+      mainstream_score: Math.min(100, Math.max(0, parsed.mainstream_score ?? 50)),
+      icon:             parsed.icon             || '🔥',
+      artists:          [...state.artists],
+      vibes:            [...state.vibes],
+      intensity:        state.intensity,
+      date:             now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      timestamp:        now.getTime(),
+    };
+
+    displayResults(state.current);
+
+  } catch (err) {
+    showToast(`❌ ${err.message}`, 4500);
+    console.error('Roast error:', err);
+  } finally {
+    $('loading-overlay').classList.add('hidden');
+    $('roast-btn').disabled = false;
+  }
+}
+
+function displayResults(roast) {
+  $('result-thumb').textContent    = roast.icon;
+  $('result-date').textContent     = roast.date.toUpperCase();
+  $('result-title').textContent    = roast.title;
+  $('result-artists').textContent  =
+    `${roast.artists.join(' · ')} · ${roast.artists.length} artist${roast.artists.length !== 1 ? 's' : ''} analyzed`;
+  $('result-roast').textContent    = roast.roast;
+  $('stat-score').textContent      = `${roast.mainstream_score}%`;
+  $('stat-archetype').textContent  = roast.archetype;
+  $('stat-count').textContent      = roast.artists.length;
+  $('stat-intensity').textContent  = { mild: '🎵 Mild', medium: '🔥 Medium', nuclear: '💀 Nuclear' }[roast.intensity];
+
+  $('save-btn').classList.remove('saved');
+  $('save-btn').textContent = '💾';
+
+  showView('results');
+}
+
+$('roast-btn').addEventListener('click', generateRoast);
+
+// ── Copy & Share ─────────────────────────────────────
+$('copy-btn').addEventListener('click', () => {
+  if (!state.current) return;
+  const text =
+    `🔥 RoastMyTaste\n` +
+    `"${state.current.roast}"\n` +
+    `Artists: ${state.current.artists.join(', ')}`;
+  navigator.clipboard.writeText(text).then(() => showToast('📋 Copied to clipboard!'));
+});
+
+$('share-btn').addEventListener('click', () => {
+  if (!state.current) return;
+  if (navigator.share) {
+    navigator.share({
+      title: '🔥 ' + state.current.title,
+      text:  state.current.roast,
+      url:   location.href,
+    });
+  } else {
+    $('copy-btn').click();
+  }
+});
+
+// ── Saved view (placeholder — full logic in next commit) ──
+function renderSavedView() {
+  const list = $('saved-list');
+  list.innerHTML = `<div class="empty-state">
+    <div class="empty-icon">💀</div>
+    <p>No saved roasts yet. Go get roasted!</p>
+    <button class="btn-orange" id="go-home-btn">🔥 Get Roasted</button>
+  </div>`;
+  list.querySelector('#go-home-btn').addEventListener('click', () => showView('home'));
+}
+
+// ── Init ─────────────────────────────────────────────
+checkBanner();
