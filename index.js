@@ -1,13 +1,15 @@
 /* =====================================================
-   RoastMyTaste — Async JS & API Calls
+   RoastMyTaste — Async JS, API Calls & Database
    APIs used:
      - MusicBrainz  (artist search, free/no key)
      - Groq         (AI roast generation, free key required)
+   Storage: localStorage
    ===================================================== */
 
 const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const MB_URL     = 'https://musicbrainz.org/ws/2/artist/';
+const DB_KEY     = 'roastmytaste_roasts';
 
 // ── App state ────────────────────────────────────────
 const state = {
@@ -125,7 +127,9 @@ function showSuggestions(artists) {
   artists.slice(0, 5).forEach(a => {
     const item = document.createElement('div');
     item.className = 'suggestion-item';
-    const type = a.disambiguation ? `<span class="suggestion-type">${escHtml(a.disambiguation)}</span>` : '';
+    const type = a.disambiguation
+      ? `<span class="suggestion-type">${escHtml(a.disambiguation)}</span>`
+      : '';
     item.innerHTML = `<span class="suggestion-name">🎤 ${escHtml(a.name)}</span>${type}`;
     item.addEventListener('mousedown', e => {
       e.preventDefault();
@@ -287,6 +291,7 @@ Reply ONLY with valid JSON — no extra text, no markdown fences:
     };
 
     displayResults(state.current);
+    addToHistory(state.current);
 
   } catch (err) {
     showToast(`❌ ${err.message}`, 4500);
@@ -309,8 +314,10 @@ function displayResults(roast) {
   $('stat-count').textContent      = roast.artists.length;
   $('stat-intensity').textContent  = { mild: '🎵 Mild', medium: '🔥 Medium', nuclear: '💀 Nuclear' }[roast.intensity];
 
-  $('save-btn').classList.remove('saved');
-  $('save-btn').textContent = '💾';
+  const saveBtn = $('save-btn');
+  const isSaved = isRoastSaved(roast.id);
+  saveBtn.classList.toggle('saved', isSaved);
+  saveBtn.textContent = isSaved ? '✅' : '💾';
 
   showView('results');
 }
@@ -340,16 +347,145 @@ $('share-btn').addEventListener('click', () => {
   }
 });
 
-// ── Saved view (placeholder — full logic in next commit) ──
+// ═════════════════════════════════════════════════════
+//  DATABASE — localStorage
+// ═════════════════════════════════════════════════════
+
+// ── Read / write helpers ─────────────────────────────
+function loadDB() {
+  try {
+    return JSON.parse(localStorage.getItem(DB_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDB(roasts) {
+  localStorage.setItem(DB_KEY, JSON.stringify(roasts));
+}
+
+// ── History (all roasts, newest first) ───────────────
+function addToHistory(roast) {
+  const roasts = loadDB();
+  roasts.unshift(roast);
+  if (roasts.length > 50) roasts.length = 50;
+  saveDB(roasts);
+  renderHistorySidebar();
+}
+
+function renderHistorySidebar() {
+  const list   = $('history-list');
+  const roasts = loadDB();
+
+  if (!roasts.length) {
+    list.innerHTML = '<p style="font-size:0.76rem;color:var(--txt3);padding:6px 4px">No roasts yet</p>';
+    return;
+  }
+
+  list.innerHTML = '';
+  roasts.slice(0, 8).forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.dataset.id = r.id;
+    item.innerHTML = `
+      <div class="history-thumb">${escHtml(r.icon)}</div>
+      <div class="history-info">
+        <div class="history-title">${escHtml(r.title)}</div>
+        <div class="history-sub">Roast · ${escHtml(r.date)}</div>
+      </div>`;
+    item.addEventListener('click', () => {
+      state.current = r;
+      displayResults(r);
+    });
+    list.appendChild(item);
+  });
+}
+
+$('clear-history-btn').addEventListener('click', () => {
+  if (!confirm('Clear all roast history?')) return;
+  saveDB([]);
+  renderHistorySidebar();
+  showToast('History cleared');
+});
+
+// ── Save / unsave a roast ────────────────────────────
+function isRoastSaved(id) {
+  return loadDB().some(r => r.id === id && r.saved);
+}
+
+function toggleSave(roast) {
+  const roasts = loadDB();
+  const found  = roasts.find(r => r.id === roast.id);
+
+  if (found) {
+    found.saved = !found.saved;
+    saveDB(roasts);
+    return found.saved;
+  } else {
+    roast.saved = true;
+    roasts.unshift(roast);
+    saveDB(roasts);
+    return true;
+  }
+}
+
+$('save-btn').addEventListener('click', () => {
+  if (!state.current) return;
+  const nowSaved = toggleSave(state.current);
+  const btn      = $('save-btn');
+  btn.classList.toggle('saved', nowSaved);
+  btn.textContent = nowSaved ? '✅' : '💾';
+  showToast(nowSaved ? '💾 Roast saved!' : 'Removed from saved');
+  renderHistorySidebar();
+});
+
+// ── Saved roasts view ────────────────────────────────
 function renderSavedView() {
-  const list = $('saved-list');
-  list.innerHTML = `<div class="empty-state">
-    <div class="empty-icon">💀</div>
-    <p>No saved roasts yet. Go get roasted!</p>
-    <button class="btn-orange" id="go-home-btn">🔥 Get Roasted</button>
-  </div>`;
-  list.querySelector('#go-home-btn').addEventListener('click', () => showView('home'));
+  const container = $('saved-list');
+  const saved     = loadDB().filter(r => r.saved);
+
+  if (!saved.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">💀</div>
+        <p>No saved roasts yet. Go get roasted!</p>
+        <button class="btn-orange" id="go-home-btn2">🔥 Get Roasted</button>
+      </div>`;
+    $('go-home-btn2').addEventListener('click', () => showView('home'));
+    return;
+  }
+
+  container.innerHTML = '';
+  saved.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'saved-card';
+    card.innerHTML = `
+      <div class="saved-card-thumb">${escHtml(r.icon)}</div>
+      <div class="saved-card-info">
+        <div class="saved-card-title">${escHtml(r.title)}</div>
+        <div class="saved-card-sub">${escHtml(r.artists.join(' · '))}</div>
+      </div>
+      <span class="saved-card-date">${escHtml(r.date)}</span>
+      <button class="delete-btn" title="Remove from saved" data-id="${escHtml(r.id)}">🗑</button>`;
+
+    card.querySelector('.saved-card-info').addEventListener('click', () => {
+      state.current = r;
+      displayResults(r);
+    });
+    card.querySelector('.delete-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      const roasts  = loadDB();
+      const target  = roasts.find(x => x.id === r.id);
+      if (target) { target.saved = false; saveDB(roasts); }
+      renderSavedView();
+      renderHistorySidebar();
+      showToast('Removed from saved');
+    });
+
+    container.appendChild(card);
+  });
 }
 
 // ── Init ─────────────────────────────────────────────
 checkBanner();
+renderHistorySidebar();
